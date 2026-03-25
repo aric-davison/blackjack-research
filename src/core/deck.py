@@ -40,6 +40,8 @@ class Deck:
         random.shuffle(self.cards)
 
     def deal(self):
+        if not self.cards:
+            self.reset()
         return self.cards.pop()
 
     def deal_card(self):

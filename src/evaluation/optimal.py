@@ -95,6 +95,24 @@ def _build_optimal_strategy():
                 action = 'hit'
             strategy[(player_value, dealer_upcard, True)] = action
 
+    # --- Pair splits ---
+    # Key: ('pair', card_value, dealer_upcard) -> 'split' (only present if should split)
+    # 6-deck, dealer stands on soft 17
+    pair_splits = {
+        2:  range(2, 8),   # 2-2: split vs 2-7
+        3:  range(2, 8),   # 3-3: split vs 2-7
+        4:  range(5, 7),   # 4-4: split vs 5-6
+        6:  range(2, 7),   # 6-6: split vs 2-6
+        7:  range(2, 8),   # 7-7: split vs 2-7
+        8:  range(2, 12),  # 8-8: always split
+        9:  [2, 3, 4, 5, 6, 8, 9],  # 9-9: split vs 2-6, 8-9 (stand vs 7, 10, A)
+        11: range(2, 12),  # A-A: always split
+    }
+    # 5-5: never split, 10-10: never split
+    for card_value, dealer_range in pair_splits.items():
+        for dealer_upcard in dealer_range:
+            strategy[('pair', card_value, dealer_upcard)] = 'split'
+
     return strategy
 
 

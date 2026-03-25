@@ -51,7 +51,15 @@ class EvaluationHarness:
                 blackjacks += 1
                 game.player_stand()
             else:
-                # Play the hand using strategy lookups
+                # Check for pair split before regular play
+                hand = game.player_hand
+                if hand.can_split():
+                    card_value = hand.cards[0].value
+                    dealer_uc = game.dealer_upcard.value
+                    if strategy.get(('pair', card_value, dealer_uc)) == 'split':
+                        game.execute_action('split')
+
+                # Play the hand(s) using strategy lookups
                 while not game.game_over:
                     state = game.get_state()
                     num_cards = len(game.player_hand.cards)

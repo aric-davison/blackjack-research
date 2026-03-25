@@ -23,7 +23,11 @@ class BruteForceAlgorithm(BaseAlgorithm):
         return "brute_force"
 
     def compute_strategy(self) -> dict:
-        """Compute strategy by brute-force EV calculation for all 360 states."""
+        """Compute strategy by brute-force EV calculation for all states.
+
+        Produces 360 regular states + 100 pair states = 460 total.
+        Pair states use key ('pair', card_value, dealer_upcard).
+        """
         # Step 1: Compute dealer outcome distributions for each upcard
         print("Computing dealer outcome distributions...")
         dealer_probs = {}
@@ -34,7 +38,7 @@ class BruteForceAlgorithm(BaseAlgorithm):
         # Step 2: For each state, find the action with highest EV
         strategy = {}
         self.states_explored = 0
-        total_states = 18 * 10 * 2  # 360
+        total_states = 18 * 10 * 2 + 10 * 10  # 360 regular + 100 pair
         for player_value in range(4, 22):
             print(f"  Player value {player_value}/21 "
                   f"({self.states_explored}/{total_states} states)...")
@@ -53,8 +57,33 @@ class BruteForceAlgorithm(BaseAlgorithm):
                         'hit': self._hit_ev(player_value, dealer_upcard, has_usable_ace, dealer_out),
                         'double': self._double_ev(player_value, has_usable_ace, dealer_out),
                     }
-                    strategy[(player_value, dealer_upcard, has_usable_ace)] = max(evs, key=evs.get)
+                    strategy[(player_value, dealer_upcard, has_usable_ace)] = max(evs, key=lambda k: evs[k])
                     self.states_explored += 1
+
+        # Step 3: Compute pair split decisions
+        for card_value in range(2, 12):  # 2-10, 11=Ace
+            card_label = 'A' if card_value == 11 else str(card_value)
+            print(f"  Pair {card_label}-{card_label} "
+                  f"({self.states_explored}/{total_states} states)...")
+            for dealer_upcard in range(2, 12):
+                dealer_out = dealer_probs[dealer_upcard]
+                # Hand value and softness for this pair played without splitting
+                if card_value == 11:
+                    pair_value, pair_soft = 12, True  # A+A = soft 12
+                else:
+                    pair_value, pair_soft = card_value * 2, False
+
+                # Best EV without splitting (already computed in regular strategy)
+                no_split_ev = max(
+                    self._stand_ev(pair_value, dealer_out),
+                    self._hit_ev(pair_value, dealer_upcard, pair_soft, dealer_out),
+                    self._double_ev(pair_value, pair_soft, dealer_out),
+                )
+                split_ev = self._split_ev(card_value, dealer_upcard, dealer_out)
+
+                if split_ev > no_split_ev:
+                    strategy[('pair', card_value, dealer_upcard)] = 'split'
+                self.states_explored += 1
 
         print(f"Brute-force complete. {self.states_explored} states explored.")
         return strategy
@@ -119,6 +148,29 @@ class BruteForceAlgorithm(BaseAlgorithm):
             else:
                 ev += prob * 2 * self._stand_ev(new_pv, dealer_outcomes)
         return ev
+
+    def _split_ev(self, card_value, dealer_upcard, dealer_outcomes):
+        """EV of splitting a pair. Each split hand starts with one card, draws another.
+
+        For aces: one card only, auto-stand (standard casino rule).
+        For non-aces: play optimally, can double but no re-split.
+        Returns total EV across both hands (each costs 1 unit).
+        """
+        if card_value == 11:  # Aces
+            single_hand_ev = 0.0
+            for next_card, prob in CARD_PROBS:
+                new_pv, new_soft = self._add_card(11, True, next_card)
+                single_hand_ev += prob * self._stand_ev(new_pv, dealer_outcomes)
+            return 2 * single_hand_ev
+
+        is_soft = False
+        single_hand_ev = 0.0
+        for next_card, prob in CARD_PROBS:
+            new_pv, new_soft = self._add_card(card_value, is_soft, next_card)
+            single_hand_ev += prob * self._best_ev(
+                new_pv, dealer_upcard, new_soft, dealer_outcomes, can_double=True
+            )
+        return 2 * single_hand_ev
 
     def _best_ev(self, pv, dc, soft, dealer_outcomes, can_double=True):
         """Return the maximum EV across available actions (no memoization)."""
