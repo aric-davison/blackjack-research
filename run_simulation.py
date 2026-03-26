@@ -1,6 +1,10 @@
 """Run 1,000,000-hand simulations for each algorithm and display results."""
 
+import time
+import tracemalloc
+
 from src.algorithms.brute_force import BruteForceAlgorithm
+from src.algorithms.dynamic_programming import DynamicProgrammingAlgorithm
 from src.algorithms.greedy import GreedyAlgorithm
 from src.evaluation.harness import EvaluationHarness
 from src.evaluation.optimal import OPTIMAL_STRATEGY
@@ -10,24 +14,39 @@ BET = 10
 
 algorithms = [
     BruteForceAlgorithm(),
+    DynamicProgrammingAlgorithm(),
     GreedyAlgorithm(),
 ]
 
 harness = EvaluationHarness(num_hands=NUM_HANDS, bet=BET)
 
+DISPLAY_NAMES = {
+    'dynamic_programming': 'DP (memo)',
+}
+
 results = []
 for algo in algorithms:
+    display = DISPLAY_NAMES.get(algo.name, algo.name)
     print(f"\n{'='*60}")
-    print(f"Computing strategy: {algo.name}")
+    print(f"Computing strategy: {display}")
     print(f"{'='*60}")
+    tracemalloc.start()
+    compute_start = time.perf_counter()
     strategy = algo.compute_strategy()
+    compute_time = time.perf_counter() - compute_start
+    _, compute_memory = tracemalloc.get_traced_memory()
+    tracemalloc.stop()
 
     accuracy = EvaluationHarness.compute_accuracy(strategy, OPTIMAL_STRATEGY)
     print(f"Strategy accuracy vs optimal: {accuracy:.1%}")
+    print(f"Strategy compute time: {compute_time:.4f}s")
+    print(f"Strategy compute peak memory: {compute_memory / 1024:.1f} KB")
 
     print(f"Simulating {NUM_HANDS:,} hands...")
     result = harness.evaluate(strategy, algo.name)
     result['strategy_accuracy'] = accuracy
+    result['compute_time'] = compute_time
+    result['compute_memory'] = compute_memory
     results.append(result)
 
     print(f"  Wins:       {result['wins']:>10,}")
@@ -43,9 +62,10 @@ for algo in algorithms:
 print(f"\n{'='*60}")
 print(f"SUMMARY — {NUM_HANDS:,} hands, ${BET} bet")
 print(f"{'='*60}")
-print(f"{'Algorithm':<15} {'Win Rate':>10} {'House Edge':>12} {'Net P/L':>12} {'Accuracy':>10}")
-print(f"{'-'*15} {'-'*10} {'-'*12} {'-'*12} {'-'*10}")
+print(f"{'Algorithm':<20} {'Compute':>10} {'Sim Time':>10} {'Win Rate':>10} {'House Edge':>12} {'Net P/L':>12} {'Accuracy':>10}")
+print(f"{'-'*20} {'-'*10} {'-'*10} {'-'*10} {'-'*12} {'-'*12} {'-'*10}")
 for r in results:
     net = r['average_return'] * NUM_HANDS
-    print(f"{r['algorithm']:<15} {r['win_rate']:>10.2%} {r['house_edge']:>11.2%} "
+    display = DISPLAY_NAMES.get(r['algorithm'], r['algorithm'])
+    print(f"{display:<20} {r['compute_time']:>9.4f}s {r['runtime_seconds']:>9.2f}s {r['win_rate']:>10.2%} {r['house_edge']:>11.2%} "
           f"${net:>+11,.0f} {r['strategy_accuracy']:>10.1%}")
