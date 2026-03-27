@@ -18,3 +18,8 @@ Thumbs.db
 
 # Environments
 .env
+
+# Simulation logs
+logs/
+
+CLAUDE.md
