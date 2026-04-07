@@ -7,8 +7,10 @@ class TestOptimalStrategy:
     def test_is_dict(self):
         assert isinstance(OPTIMAL_STRATEGY, dict)
 
-    def test_completeness_360_entries(self):
-        assert len(OPTIMAL_STRATEGY) == 360
+    def test_completeness_360_regular_entries(self):
+        """Optimal strategy has 360 regular states (pair split entries are conditional)."""
+        regular = {k: v for k, v in OPTIMAL_STRATEGY.items() if not isinstance(k[0], str)}
+        assert len(regular) == 360
 
     def test_valid_actions(self):
         valid = {'hit', 'stand', 'double', 'split'}
@@ -53,9 +55,18 @@ class TestOptimalStrategy:
 
     def test_state_tuple_format(self):
         for state in OPTIMAL_STRATEGY:
-            pv, dc, soft = state
-            assert isinstance(pv, int)
-            assert isinstance(dc, int)
-            assert isinstance(soft, bool)
-            assert 4 <= pv <= 21
-            assert 2 <= dc <= 11
+            if isinstance(state[0], str):
+                # Pair split entry: ('pair', card_value, dealer_upcard)
+                label, cv, dc = state
+                assert label == 'pair'
+                assert isinstance(cv, int)
+                assert isinstance(dc, int)
+                assert 2 <= cv <= 11
+                assert 2 <= dc <= 11
+            else:
+                pv, dc, soft = state
+                assert isinstance(pv, int)
+                assert isinstance(dc, int)
+                assert isinstance(soft, bool)
+                assert 4 <= pv <= 21
+                assert 2 <= dc <= 11

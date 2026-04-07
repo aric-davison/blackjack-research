@@ -25,8 +25,10 @@ class TestBruteForceAlgorithm:
         assert isinstance(strategy, dict)
 
     def test_completeness(self, brute_force_result):
+        """Brute force produces 360 regular states (pair split entries are conditional)."""
         _, strategy = brute_force_result
-        assert len(strategy) == 360
+        regular = {k: v for k, v in strategy.items() if not isinstance(k[0], str)}
+        assert len(regular) == 360
 
     def test_valid_actions(self, brute_force_result):
         _, strategy = brute_force_result
@@ -67,14 +69,15 @@ class TestBruteForceAlgorithm:
 
     def test_states_explored(self, brute_force_result):
         algo, _ = brute_force_result
-        assert algo.states_explored == 360
+        assert algo.states_explored == 460  # 360 regular + 100 pair
 
     def test_high_accuracy_vs_optimal(self, brute_force_result):
         _, strategy = brute_force_result
         accuracy = EvaluationHarness.compute_accuracy(strategy, OPTIMAL_STRATEGY)
         assert accuracy >= 0.90
 
-    def test_never_splits(self, brute_force_result):
+    def test_has_split_entries(self, brute_force_result):
+        """Brute force should produce some pair split recommendations."""
         _, strategy = brute_force_result
-        for action in strategy.values():
-            assert action != 'split'
+        pair_entries = {k: v for k, v in strategy.items() if isinstance(k[0], str)}
+        assert len(pair_entries) > 0
