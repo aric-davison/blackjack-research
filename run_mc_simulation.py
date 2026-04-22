@@ -1,11 +1,14 @@
 """Run Monte Carlo convergence simulation and display results."""
 
+import os
 import time
 import tracemalloc
+from datetime import datetime
 
 from src.algorithms.monte_carlo import MonteCarloAlgorithm
 from src.evaluation.harness import EvaluationHarness
 from src.evaluation.optimal import OPTIMAL_STRATEGY
+from src.evaluation.export import export_strategies_csv
 
 NUM_EVAL_HANDS = 1_000_000
 BET = 10
@@ -57,3 +60,9 @@ print(f"  Win rate:   {result['win_rate']:>10.2%}")
 print(f"  Avg return: ${result['average_return']:>+9.4f} per hand")
 print(f"  House edge: {result['house_edge']:>10.2%}")
 print(f"  Sim time:   {result['runtime_seconds']:>10.2f}s")
+
+os.makedirs('logs', exist_ok=True)
+timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+strategy_csv = f'logs/strategies_mc_{timestamp}.csv'
+export_strategies_csv(strategy_csv, {'optimal': OPTIMAL_STRATEGY, algo.name: strategy})
+print(f"\nStrategy tables saved to: {strategy_csv}")

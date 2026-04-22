@@ -1,13 +1,16 @@
 """Run 1,000,000-hand simulations for each algorithm and display results."""
 
+import os
 import time
 import tracemalloc
+from datetime import datetime
 
 from src.algorithms.brute_force import BruteForceAlgorithm
 from src.algorithms.dynamic_programming import DynamicProgrammingAlgorithm
 from src.algorithms.greedy import GreedyAlgorithm
 from src.evaluation.harness import EvaluationHarness
 from src.evaluation.optimal import OPTIMAL_STRATEGY
+from src.evaluation.export import export_strategies_csv
 
 NUM_HANDS = 1_000_000
 BET = 10
@@ -24,6 +27,8 @@ DISPLAY_NAMES = {
     'dynamic_programming': 'DP (memo)',
 }
 
+strategies = {'optimal': OPTIMAL_STRATEGY}
+
 results = []
 for algo in algorithms:
     display = DISPLAY_NAMES.get(algo.name, algo.name)
@@ -37,6 +42,7 @@ for algo in algorithms:
     _, compute_memory = tracemalloc.get_traced_memory()
     tracemalloc.stop()
 
+    strategies[algo.name] = strategy
     accuracy = EvaluationHarness.compute_accuracy(strategy, OPTIMAL_STRATEGY)
     print(f"Strategy accuracy vs optimal: {accuracy:.1%}")
     print(f"Strategy compute time: {compute_time:.4f}s")
@@ -69,3 +75,9 @@ for r in results:
     display = DISPLAY_NAMES.get(r['algorithm'], r['algorithm'])
     print(f"{display:<20} {r['compute_time']:>9.4f}s {r['runtime_seconds']:>9.2f}s {r['win_rate']:>10.2%} {r['house_edge']:>11.2%} "
           f"${net:>+11,.0f} {r['strategy_accuracy']:>10.1%}")
+
+os.makedirs('logs', exist_ok=True)
+timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+strategy_csv = f'logs/strategies_{timestamp}.csv'
+export_strategies_csv(strategy_csv, strategies)
+print(f"\nStrategy tables saved to: {strategy_csv}")

@@ -91,10 +91,31 @@ class DynamicProgrammingAlgorithm(BaseAlgorithm):
         return strategy
 
     def _dealer_outcomes(self, upcard):
-        """Compute dealer final-value probability distribution for a given upcard."""
+        """Compute dealer final-value probability distribution for a given upcard.
+
+        When upcard is ace or 10, conditions on dealer NOT having a natural
+        blackjack (US hole-card peek rules): the hole-card draw excludes the
+        10-value (vs ace) or ace (vs 10) and is renormalized.
+        """
         if upcard == 11:
-            return self._dealer_recurse(11, True)
+            return self._dealer_peek(upcard=11, soft=True, excluded=10)
+        if upcard == 10:
+            return self._dealer_peek(upcard=10, soft=False, excluded=11)
         return self._dealer_recurse(upcard, False)
+
+    def _dealer_peek(self, upcard, soft, excluded):
+        """Draw the hole card excluding the blackjack-making value, renormalize."""
+        remaining = sum(p for v, p in CARD_PROBS if v != excluded)
+        outcomes = {}
+        for card_value, prob in CARD_PROBS:
+            if card_value == excluded:
+                continue
+            norm = prob / remaining
+            new_value, new_soft = self._add_card(upcard, soft, card_value)
+            sub = self._dealer_recurse(new_value, new_soft)
+            for outcome, sub_prob in sub.items():
+                outcomes[outcome] = outcomes.get(outcome, 0) + norm * sub_prob
+        return outcomes
 
     def _dealer_recurse(self, value, soft):
         """Recursively enumerate dealer card sequences with memoization."""

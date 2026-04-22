@@ -12,6 +12,7 @@ from src.algorithms.dynamic_programming import DynamicProgrammingAlgorithm
 from src.algorithms.greedy import GreedyAlgorithm
 from src.evaluation.harness import EvaluationHarness
 from src.evaluation.optimal import OPTIMAL_STRATEGY
+from src.evaluation.export import export_strategies_csv
 
 NUM_TRIALS = 100
 NUM_HANDS = 1_000_000
@@ -42,6 +43,7 @@ CSV_FIELDS = [
 ]
 
 all_results = {}
+strategies = {'optimal': OPTIMAL_STRATEGY}
 
 with open(csv_path, 'w', newline='') as csvfile:
     writer = csv.DictWriter(csvfile, fieldnames=CSV_FIELDS)
@@ -61,6 +63,7 @@ with open(csv_path, 'w', newline='') as csvfile:
         _, compute_memory = tracemalloc.get_traced_memory()
         tracemalloc.stop()
 
+        strategies[algo.name] = strategy
         accuracy = EvaluationHarness.compute_accuracy(strategy, OPTIMAL_STRATEGY)
         print(f"  Accuracy: {accuracy:.1%}  |  Compute: {compute_time:.4f}s  |  Memory: {compute_memory / 1024:.1f} KB")
 
@@ -120,4 +123,7 @@ for algo in algorithms:
           f"{he_mean:>8.2%} +/- {he_std:.2%}  "
           f"${ar_mean:>+8.4f} +/- {ar_std:.4f}")
 
+strategy_csv = f'logs/strategies_{timestamp}.csv'
+export_strategies_csv(strategy_csv, strategies)
 print(f"\nResults saved to: {csv_path}")
+print(f"Strategy tables saved to: {strategy_csv}")
