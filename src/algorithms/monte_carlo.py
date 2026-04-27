@@ -24,7 +24,7 @@ class MonteCarloAlgorithm(BaseAlgorithm):
         self.seed = seed
         self.verbose = verbose
         self.convergence_schedule = convergence_schedule or [
-            10_000, 100_000, 500_000, 1_000_000, 5_000_000, 10_000_000, 20_000_000, 50_000_000, 100_000_000
+            10_000, 100_000, 500_000, 1_000_000, 5_000_000, 10_000_000
         ]
         # Welford's online stats: {(state_key, action): (count, mean, M2)}
         self.ev_data = {}
@@ -83,12 +83,13 @@ class MonteCarloAlgorithm(BaseAlgorithm):
             # Snapshot at each checkpoint
             if checkpoint_idx < len(self.convergence_schedule) and \
                hand_num == self.convergence_schedule[checkpoint_idx]:
+                elapsed = time.time() - start_time
                 strategy = self._build_strategy()
                 metrics = self._compute_metrics(strategy, hand_num)
+                metrics['elapsed_seconds'] = elapsed
                 self.convergence_data.append(metrics)
                 checkpoint_idx += 1
                 if self.verbose:
-                    elapsed = time.time() - start_time
                     print(f"\r  Checkpoint {hand_num:>12,} | "
                           f"accuracy: {metrics['strategy_accuracy']:.1%} | "
                           f"elapsed: {elapsed:.1f}s")

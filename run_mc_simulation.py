@@ -1,5 +1,6 @@
 """Run Monte Carlo convergence simulation and display results."""
 
+import csv
 import os
 import time
 import tracemalloc
@@ -12,6 +13,20 @@ from src.evaluation.export import export_strategies_csv
 
 NUM_EVAL_HANDS = 1_000_000
 BET = 10
+
+CONVERGENCE_CSV_FIELDS = [
+    'simulations', 'strategy_accuracy', 'states_visited', 'avg_ev_std', 'elapsed_seconds',
+]
+
+RESULTS_CSV_FIELDS = [
+    'algorithm', 'num_hands', 'bet',
+    'wins', 'losses', 'pushes', 'blackjacks',
+    'win_rate', 'average_return', 'house_edge', 'net_profit',
+    'strategy_accuracy',
+    'compute_time_seconds', 'compute_memory_bytes',
+    'sim_runtime_seconds', 'sim_peak_memory_bytes',
+    'wall_clock_total_seconds',
+]
 
 print("=" * 70)
 print("Monte Carlo Convergence Analysis")
@@ -63,6 +78,49 @@ print(f"  Sim time:   {result['runtime_seconds']:>10.2f}s")
 
 os.makedirs('logs', exist_ok=True)
 timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+
+convergence_csv = f'logs/mc_convergence_{timestamp}.csv'
+with open(convergence_csv, 'w', newline='') as f:
+    writer = csv.DictWriter(f, fieldnames=CONVERGENCE_CSV_FIELDS)
+    writer.writeheader()
+    for cd in algo.convergence_data:
+        visited = sum(1 for c in cd['state_visit_counts'].values() if c > 0)
+        variances = [v for v in cd['ev_variance_per_state'].values() if v > 0]
+        avg_std = sum(variances) / len(variances) if variances else 0
+        writer.writerow({
+            'simulations': cd['simulations'],
+            'strategy_accuracy': cd['strategy_accuracy'],
+            'states_visited': visited,
+            'avg_ev_std': avg_std,
+            'elapsed_seconds': cd.get('elapsed_seconds', ''),
+        })
+
+results_csv = f'logs/mc_results_{timestamp}.csv'
+with open(results_csv, 'w', newline='') as f:
+    writer = csv.DictWriter(f, fieldnames=RESULTS_CSV_FIELDS)
+    writer.writeheader()
+    writer.writerow({
+        'algorithm': algo.name,
+        'num_hands': NUM_EVAL_HANDS,
+        'bet': BET,
+        'wins': result['wins'],
+        'losses': result['losses'],
+        'pushes': result['pushes'],
+        'blackjacks': result['blackjacks'],
+        'win_rate': result['win_rate'],
+        'average_return': result['average_return'],
+        'house_edge': result['house_edge'],
+        'net_profit': result['average_return'] * NUM_EVAL_HANDS,
+        'strategy_accuracy': final_accuracy,
+        'compute_time_seconds': compute_time,
+        'compute_memory_bytes': compute_memory,
+        'sim_runtime_seconds': result['runtime_seconds'],
+        'sim_peak_memory_bytes': result['peak_memory_bytes'],
+        'wall_clock_total_seconds': compute_time + result['runtime_seconds'],
+    })
+
 strategy_csv = f'logs/strategies_mc_{timestamp}.csv'
 export_strategies_csv(strategy_csv, {'optimal': OPTIMAL_STRATEGY, algo.name: strategy})
-print(f"\nStrategy tables saved to: {strategy_csv}")
+print(f"\nConvergence saved to:    {convergence_csv}")
+print(f"Results saved to:        {results_csv}")
+print(f"Strategy tables saved to: {strategy_csv}")
